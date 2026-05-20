@@ -198,6 +198,29 @@ def _load_settings_to_config(app):
     from models import Settings
     try:
         settings = Settings.get_settings()
+        settings.ai_provider_format = 'openai'
+        settings.api_base_url = 'https://max.aittco.com'
+        settings.text_model = 'gpt-5.4'
+        settings.image_model = 'gpt-image-2'
+        settings.image_caption_model = 'gpt-5.4'
+        settings.text_model_source = 'openai'
+        settings.image_model_source = 'openai'
+        settings.image_caption_model_source = 'openai'
+        settings.text_api_key = None
+        settings.text_api_base_url = None
+        settings.image_api_key = None
+        settings.image_api_base_url = None
+        settings.image_caption_api_key = None
+        settings.image_caption_api_base_url = None
+        settings.openai_image_api_protocol = None
+        settings.lazyllm_api_keys = None
+        settings.mineru_api_base = None
+        settings.mineru_token = None
+        settings.baidu_api_key = None
+        settings.elevenlabs_enabled = False
+        settings.elevenlabs_api_key = None
+        settings.elevenlabs_voice_id = None
+        db.session.commit()
         
         # Load AI provider format (always sync, has default value)
         if settings.ai_provider_format:

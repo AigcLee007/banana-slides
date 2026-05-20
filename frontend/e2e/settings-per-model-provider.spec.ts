@@ -10,8 +10,8 @@ const mockSettingsWithPerModel = {
   message: 'Success',
   data: {
     id: 1,
-    ai_provider_format: 'gemini',
-    api_base_url: 'https://aihubmix.com/gemini',
+    ai_provider_format: 'openai',
+    api_base_url: 'https://max.aittco.com',
     api_key_length: 51,
     text_model: 'glm-4.5',
     image_model: 'imagen-3.0-generate-001',

@@ -42,7 +42,7 @@ class GeminiInpaintingProvider:
         
         Args:
             api_key: Google API key
-            api_base: API base URL (for proxies like aihubmix)
+            api_base: API base URL
             model: Model name to use (default: gemini-2.5-flash-image)
             timeout: API 请求超时时间（秒）
         """

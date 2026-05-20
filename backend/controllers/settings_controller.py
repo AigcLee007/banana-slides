@@ -22,10 +22,42 @@ from services.task_manager import task_manager
 
 logger = logging.getLogger(__name__)
 ALLOWED_PROVIDER_FORMATS = {"openai", "gemini", "lazyllm", "codex"} | LAZYLLM_VENDORS
+LOCKED_AI_PROVIDER_FORMAT = "openai"
+LOCKED_API_BASE_URL = "https://max.aittco.com"
+LOCKED_TEXT_MODEL = "gpt-5.4"
+LOCKED_IMAGE_MODEL = "gpt-image-2"
+LOCKED_IMAGE_CAPTION_MODEL = "gpt-5.4"
+LOCKED_MODEL_SOURCE = "openai"
 
 settings_bp = Blueprint(
     "settings", __name__, url_prefix="/api/settings"
 )
+
+
+def _apply_locked_user_settings(settings: Settings):
+    """Apply hidden, non-user-editable settings."""
+    settings.ai_provider_format = LOCKED_AI_PROVIDER_FORMAT
+    settings.api_base_url = LOCKED_API_BASE_URL
+    settings.text_model = LOCKED_TEXT_MODEL
+    settings.image_model = LOCKED_IMAGE_MODEL
+    settings.image_caption_model = LOCKED_IMAGE_CAPTION_MODEL
+    settings.text_model_source = LOCKED_MODEL_SOURCE
+    settings.image_model_source = LOCKED_MODEL_SOURCE
+    settings.image_caption_model_source = LOCKED_MODEL_SOURCE
+    settings.text_api_key = None
+    settings.text_api_base_url = None
+    settings.image_api_key = None
+    settings.image_api_base_url = None
+    settings.image_caption_api_key = None
+    settings.image_caption_api_base_url = None
+    settings.openai_image_api_protocol = None
+    settings.lazyllm_api_keys = None
+    settings.mineru_api_base = None
+    settings.mineru_token = None
+    settings.baidu_api_key = None
+    settings.elevenlabs_enabled = False
+    settings.elevenlabs_api_key = None
+    settings.elevenlabs_voice_id = None
 
 
 @contextmanager
@@ -187,6 +219,7 @@ def update_settings():
             return bad_request("Request body is required")
 
         settings = Settings.get_settings()
+        _apply_locked_user_settings(settings)
 
         # Update AI provider format configuration
         if "ai_provider_format" in data:
@@ -207,7 +240,9 @@ def update_settings():
                 settings.api_base_url = value if value != "" else None
 
         if "api_key" in data:
-            settings.api_key = data["api_key"]
+            settings.api_key = (data["api_key"] or "").strip() or None
+        if not settings.api_key:
+            return bad_request("API Key is required")
 
         # Update image generation configuration
         if "image_resolution" in data:
@@ -355,6 +390,7 @@ def update_settings():
             elif keys_data is None:
                 settings.lazyllm_api_keys = None
 
+        _apply_locked_user_settings(settings)
         settings.updated_at = datetime.now(timezone.utc)
         db.session.commit()
 
@@ -417,6 +453,7 @@ def reset_settings():
         settings.image_aspect_ratio = None
         settings.max_description_workers = None
         settings.max_image_workers = None
+        _apply_locked_user_settings(settings)
         settings.updated_at = datetime.now(timezone.utc)
 
         db.session.commit()
@@ -616,6 +653,7 @@ def verify_api_key():
 
 def _sync_settings_to_config(settings: Settings):
     """Sync settings to Flask app config and clear AI service cache if needed"""
+    _apply_locked_user_settings(settings)
     # Track if AI-related settings changed
     ai_config_changed = False
     

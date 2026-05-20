@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Sparkles, FileText, MessageSquare, Download, ChevronRight, Github, ChevronLeft } from 'lucide-react';
+import { Sparkles, FileText, MessageSquare, Download, ChevronRight, ChevronLeft } from 'lucide-react';
 import { Button, Footer } from '@/components/shared';
 import { useT } from '@/hooks/useT';
 
@@ -40,10 +40,10 @@ const _featureKeys = ['flexiblePaths', 'materialParsing', 'vibeEditing', 'easyEx
 
 // Showcase data consistent with HelpModal
 const showcaseKeys = [
-  { image: 'https://github.com/user-attachments/assets/d58ce3f7-bcec-451d-a3b9-ca3c16223644', titleKey: 'softwareDev' },
-  { image: 'https://github.com/user-attachments/assets/c64cd952-2cdf-4a92-8c34-0322cbf3de4e', titleKey: 'deepseek' },
-  { image: 'https://github.com/user-attachments/assets/383eb011-a167-4343-99eb-e1d0568830c7', titleKey: 'prefabFood' },
-  { image: 'https://github.com/user-attachments/assets/1a63afc9-ad05-4755-8480-fc4aa64987f1', titleKey: 'moneyHistory' },
+  { image: '/templates/template_glass-thumb.webp', titleKey: 'softwareDev' },
+  { image: '/templates/template_academic-thumb.webp', titleKey: 'deepseek' },
+  { image: '/templates/template_vector_illustration-thumb.webp', titleKey: 'prefabFood' },
+  { image: '/templates/template_b-thumb.webp', titleKey: 'moneyHistory' },
 ];
 
 export const Landing: React.FC = () => {
@@ -153,15 +153,6 @@ export const Landing: React.FC = () => {
             >
               {t('landing.hero.cta_primary')}
             </Button>
-            <a
-              href="https://github.com/Anionex/banana-slides"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-4 rounded-full bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-50 dark:hover:bg-white/10 transition-all duration-200 hover:shadow-md"
-            >
-              <Github size={20} />
-              GitHub
-            </a>
           </div>
 
           {/* 案例展示区域 (Carousel) */}

@@ -16,8 +16,6 @@ export { FilePreviewModal } from './FilePreviewModal';
 export { ReferenceFileList } from './ReferenceFileList';
 export { MaterialSelector } from './MaterialSelector';
 export { Footer } from './Footer';
-export { GithubBadge } from './GithubBadge';
-export { GithubRepoCard } from './GithubRepoCard';
 export { Markdown } from './Markdown';
 export { AiRefineInput } from './AiRefineInput';
 export { ShimmerOverlay } from './ShimmerOverlay';

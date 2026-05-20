@@ -46,7 +46,7 @@ class Config:
     GOOGLE_API_BASE = os.getenv('GOOGLE_API_BASE', '')
     
     # Provider format: gemini | openai | vertex | lazyllm
-    AI_PROVIDER_FORMAT = os.getenv('AI_PROVIDER_FORMAT', 'gemini')
+    AI_PROVIDER_FORMAT = 'openai'
 
     # Google Cloud Vertex AI (requires AI_PROVIDER_FORMAT=vertex)
     VERTEX_PROJECT_ID = os.getenv('VERTEX_PROJECT_ID', '')
@@ -57,8 +57,8 @@ class Config:
     GENAI_MAX_RETRIES = int(os.getenv('GENAI_MAX_RETRIES', '2'))  # Gemini 最大重试次数（应用层实现）
     
     # OpenAI 格式专用配置（当 AI_PROVIDER_FORMAT=openai 时使用）
-    OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')  # 当 AI_PROVIDER_FORMAT=openai 时必须设置
-    OPENAI_API_BASE = os.getenv('OPENAI_API_BASE', 'https://aihubmix.com/v1')
+    OPENAI_API_KEY = ''
+    OPENAI_API_BASE = 'https://max.aittco.com'
     OPENAI_TIMEOUT = float(os.getenv('OPENAI_TIMEOUT', '480.0'))  # 8 分钟：留出 gpt-image-2 生图(~225s)+传输的余量
     OPENAI_MAX_RETRIES = int(os.getenv('OPENAI_MAX_RETRIES', '2'))  # 减少重试次数，避免过多重试导致累积超时
 
@@ -71,9 +71,9 @@ class Config:
     ANTHROPIC_MAX_TOKENS = int(os.getenv('ANTHROPIC_MAX_TOKENS', '8192'))
 
     # Lazyllm 格式专用配置（当 AI_PROVIDER_FORMAT=lazyllm 时使用）
-    TEXT_MODEL_SOURCE = os.getenv('TEXT_MODEL_SOURCE', '')                   # 文本生成模型厂商（留空则跟随全局 AI_PROVIDER_FORMAT）
-    IMAGE_MODEL_SOURCE = os.getenv('IMAGE_MODEL_SOURCE', '')                   # 图片生成模型厂商（留空则跟随全局 AI_PROVIDER_FORMAT）
-    IMAGE_CAPTION_MODEL_SOURCE = os.getenv('IMAGE_CAPTION_MODEL_SOURCE', '')   # 图片识别模型厂商（留空则跟随全局 AI_PROVIDER_FORMAT）
+    TEXT_MODEL_SOURCE = 'openai'
+    IMAGE_MODEL_SOURCE = 'openai'
+    IMAGE_CAPTION_MODEL_SOURCE = 'openai'
 
     # 各模型类型的独立 API 配置（优先级高于全局配置）
     # 文本模型独立配置
@@ -87,15 +87,15 @@ class Config:
     IMAGE_CAPTION_API_BASE = os.getenv('IMAGE_CAPTION_API_BASE', '')
     
     # AI 模型配置
-    TEXT_MODEL = os.getenv('TEXT_MODEL', 'gemini-3-flash-preview')
-    IMAGE_MODEL = os.getenv('IMAGE_MODEL', 'gemini-3-pro-image-preview')
+    TEXT_MODEL = 'gpt-5.4'
+    IMAGE_MODEL = 'gpt-image-2'
 
     # MinerU 文件解析服务配置
     MINERU_TOKEN = os.getenv('MINERU_TOKEN', '')
     MINERU_API_BASE = os.getenv('MINERU_API_BASE', 'https://mineru.net')
     
     # 图片识别模型配置
-    IMAGE_CAPTION_MODEL = os.getenv('IMAGE_CAPTION_MODEL', 'gemini-3-flash-preview')
+    IMAGE_CAPTION_MODEL = 'gpt-5.4'
     
     # 并发配置
     MAX_DESCRIPTION_WORKERS = int(os.getenv('MAX_DESCRIPTION_WORKERS', '20'))

@@ -116,18 +116,18 @@ class Settings(db.Model):
         image_caption_api_key = self._val('image_caption_api_key', d)
         return {
             'id': self.id,
-            'ai_provider_format': self._val('ai_provider_format', d),
-            'api_base_url': self._val('api_base_url', d),
+            'ai_provider_format': 'openai',
+            'api_base_url': 'https://max.aittco.com',
             'api_key_length': len(api_key) if api_key else 0,
             'image_resolution': self._val('image_resolution', d),
             'image_aspect_ratio': self._val('image_aspect_ratio', d),
             'max_description_workers': self._val('max_description_workers', d),
             'max_image_workers': self._val('max_image_workers', d),
-            'text_model': self._val('text_model', d),
-            'image_model': self._val('image_model', d),
+            'text_model': 'gpt-5.4',
+            'image_model': 'gpt-image-2',
             'mineru_api_base': self._val('mineru_api_base', d),
             'mineru_token_length': len(mineru_token) if mineru_token else 0,
-            'image_caption_model': self._val('image_caption_model', d),
+            'image_caption_model': 'gpt-5.4',
             'output_language': self._val('output_language', d),
             'description_generation_mode': self._val('description_generation_mode', d) or 'streaming',
             'description_extra_fields': self.get_description_extra_fields(),
@@ -137,17 +137,17 @@ class Settings(db.Model):
             'enable_image_reasoning': self.enable_image_reasoning,
             'image_thinking_budget': self.image_thinking_budget,
             'baidu_api_key_length': len(baidu_api_key) if baidu_api_key else 0,
-            'text_model_source': self._val('text_model_source', d),
-            'image_model_source': self._val('image_model_source', d),
-            'image_caption_model_source': self._val('image_caption_model_source', d),
-            'lazyllm_api_keys_info': self._get_lazyllm_api_keys_info(self._val('lazyllm_api_keys', d)),
+            'text_model_source': 'openai',
+            'image_model_source': 'openai',
+            'image_caption_model_source': 'openai',
+            'lazyllm_api_keys_info': {},
             'text_api_key_length': len(text_api_key) if text_api_key else 0,
-            'text_api_base_url': self._val('text_api_base_url', d),
+            'text_api_base_url': '',
             'image_api_key_length': len(image_api_key) if image_api_key else 0,
-            'image_api_base_url': self._val('image_api_base_url', d),
+            'image_api_base_url': '',
             'image_caption_api_key_length': len(image_caption_api_key) if image_caption_api_key else 0,
-            'image_caption_api_base_url': self._val('image_caption_api_base_url', d),
-            'openai_image_api_protocol': self._val('openai_image_api_protocol', d) or 'auto',
+            'image_caption_api_base_url': '',
+            'openai_image_api_protocol': 'auto',
             'elevenlabs_enabled': self.elevenlabs_enabled,
             'elevenlabs_api_key_length': len(elevenlabs_api_key) if elevenlabs_api_key else 0,
             'elevenlabs_voice_id': self.elevenlabs_voice_id or '',
@@ -222,36 +222,28 @@ class Settings(db.Model):
         from config import Config
         from services.ai_providers.lazyllm_env import collect_env_lazyllm_api_keys
 
-        provider = (Config.AI_PROVIDER_FORMAT or '').lower()
-        if provider == 'openai':
-            api_base = Config.OPENAI_API_BASE or None
-            api_key = Config.OPENAI_API_KEY or None
-        elif provider == 'lazyllm':
-            api_base = None
-            api_key = None
-        else:
-            api_base = Config.GOOGLE_API_BASE or None
-            api_key = Config.GOOGLE_API_KEY or None
+        api_base = 'https://max.aittco.com'
+        api_key = None
 
         return {
-            'ai_provider_format': Config.AI_PROVIDER_FORMAT,
+            'ai_provider_format': 'openai',
             'api_base_url': api_base,
             'api_key': api_key,
             'image_resolution': Config.DEFAULT_RESOLUTION,
             'image_aspect_ratio': Config.DEFAULT_ASPECT_RATIO,
             'max_description_workers': Config.MAX_DESCRIPTION_WORKERS,
             'max_image_workers': Config.MAX_IMAGE_WORKERS,
-            'text_model': Config.TEXT_MODEL,
-            'image_model': Config.IMAGE_MODEL,
+            'text_model': 'gpt-5.4',
+            'image_model': 'gpt-image-2',
             'mineru_api_base': Config.MINERU_API_BASE,
             'mineru_token': Config.MINERU_TOKEN,
-            'image_caption_model': Config.IMAGE_CAPTION_MODEL,
+            'image_caption_model': 'gpt-5.4',
             'output_language': Config.OUTPUT_LANGUAGE,
             'baidu_api_key': Config.BAIDU_API_KEY or None,
-            'text_model_source': getattr(Config, 'TEXT_MODEL_SOURCE', None),
-            'image_model_source': getattr(Config, 'IMAGE_MODEL_SOURCE', None),
-            'image_caption_model_source': getattr(Config, 'IMAGE_CAPTION_MODEL_SOURCE', None),
-            'lazyllm_api_keys': collect_env_lazyllm_api_keys(),
+            'text_model_source': 'openai',
+            'image_model_source': 'openai',
+            'image_caption_model_source': 'openai',
+            'lazyllm_api_keys': {},
         }
 
     @staticmethod
