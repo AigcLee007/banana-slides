@@ -22,12 +22,12 @@ from services.task_manager import task_manager
 
 logger = logging.getLogger(__name__)
 ALLOWED_PROVIDER_FORMATS = {"openai", "gemini", "lazyllm", "codex"} | LAZYLLM_VENDORS
-LOCKED_AI_PROVIDER_FORMAT = "openai"
+LOCKED_AI_PROVIDER_FORMAT = "gemini"
 LOCKED_API_BASE_URL = "https://max.aittco.com"
-LOCKED_TEXT_MODEL = "gpt-5.4"
-LOCKED_IMAGE_MODEL = "gpt-image-2"
-LOCKED_IMAGE_CAPTION_MODEL = "gpt-5.4"
-LOCKED_MODEL_SOURCE = "openai"
+LOCKED_TEXT_MODEL = "gemini-3-flash-preview"
+LOCKED_IMAGE_MODEL = "gemini-3-pro-image-preview"
+LOCKED_IMAGE_CAPTION_MODEL = "gemini-3-flash-preview"
+LOCKED_MODEL_SOURCE = "gemini"
 
 settings_bp = Blueprint(
     "settings", __name__, url_prefix="/api/settings"
