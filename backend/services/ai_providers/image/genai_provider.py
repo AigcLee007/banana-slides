@@ -19,6 +19,23 @@ from ..genai_client import make_genai_client
 logger = logging.getLogger(__name__)
 
 
+def _image_to_part(image: Image.Image) -> types.Part:
+    """Convert a PIL image into an explicit binary Part for GenAI requests."""
+    buffer = BytesIO()
+
+    # Preserve alpha when present; otherwise use JPEG for smaller payloads.
+    if image.mode in ('RGBA', 'LA', 'P'):
+        image = image.convert('RGBA')
+        image.save(buffer, format='PNG')
+        mime_type = 'image/png'
+    else:
+        image = image.convert('RGB')
+        image.save(buffer, format='JPEG', quality=95)
+        mime_type = 'image/jpeg'
+
+    return types.Part.from_bytes(data=buffer.getvalue(), mime_type=mime_type)
+
+
 class GenAIImageProvider(ImageProvider):
     """Image generation via Google GenAI SDK (AI Studio / Vertex AI)"""
 
@@ -75,7 +92,7 @@ class GenAIImageProvider(ImageProvider):
             # Add reference images first (if any)
             if ref_images:
                 for ref_img in ref_images:
-                    contents.append(ref_img)
+                    contents.append(_image_to_part(ref_img))
             
             # Add text prompt
             contents.append(prompt)
