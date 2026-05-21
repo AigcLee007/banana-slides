@@ -102,7 +102,7 @@ class OpenAIImageProvider(ImageProvider):
     The provider will try multiple parameter formats to maximize compatibility.
     """
     
-    def __init__(self, api_key: str, api_base: str = None, model: str = "gemini-3-pro-image-preview", image_api_protocol: str = 'auto'):
+    def __init__(self, api_key: str, api_base: str = None, model: str = "gpt-image-2", image_api_protocol: str = 'auto'):
         """
         Initialize OpenAI image provider
 

@@ -72,7 +72,7 @@ class Config:
 
     # Lazyllm 格式专用配置（当 AI_PROVIDER_FORMAT=lazyllm 时使用）
     TEXT_MODEL_SOURCE = 'gemini'
-    IMAGE_MODEL_SOURCE = 'gemini'
+    IMAGE_MODEL_SOURCE = 'openai'
     IMAGE_CAPTION_MODEL_SOURCE = 'gemini'
 
     # 各模型类型的独立 API 配置（优先级高于全局配置）
@@ -88,7 +88,7 @@ class Config:
     
     # AI 模型配置
     TEXT_MODEL = 'gemini-3-flash-preview'
-    IMAGE_MODEL = 'gemini-3-pro-image-preview'
+    IMAGE_MODEL = 'gpt-image-2'
 
     # MinerU 文件解析服务配置
     MINERU_TOKEN = os.getenv('MINERU_TOKEN', '')

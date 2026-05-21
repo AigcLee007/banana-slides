@@ -11,10 +11,10 @@ const FIXED_SETTINGS = {
   ai_provider_format: 'gemini',
   api_base_url: 'https://max.aittco.com',
   text_model: 'gemini-3-flash-preview',
-  image_model: 'gemini-3-pro-image-preview',
+  image_model: 'gpt-image-2',
   image_caption_model: 'gemini-3-flash-preview',
   text_model_source: 'gemini',
-  image_model_source: 'gemini',
+  image_model_source: 'openai',
   image_caption_model_source: 'gemini',
 } as const;
 

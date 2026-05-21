@@ -25,9 +25,11 @@ ALLOWED_PROVIDER_FORMATS = {"openai", "gemini", "lazyllm", "codex"} | LAZYLLM_VE
 LOCKED_AI_PROVIDER_FORMAT = "gemini"
 LOCKED_API_BASE_URL = "https://max.aittco.com"
 LOCKED_TEXT_MODEL = "gemini-3-flash-preview"
-LOCKED_IMAGE_MODEL = "gemini-3-pro-image-preview"
+LOCKED_IMAGE_MODEL = "gpt-image-2"
 LOCKED_IMAGE_CAPTION_MODEL = "gemini-3-flash-preview"
-LOCKED_MODEL_SOURCE = "gemini"
+LOCKED_TEXT_MODEL_SOURCE = "gemini"
+LOCKED_IMAGE_MODEL_SOURCE = "openai"
+LOCKED_IMAGE_CAPTION_MODEL_SOURCE = "gemini"
 
 settings_bp = Blueprint(
     "settings", __name__, url_prefix="/api/settings"
@@ -41,9 +43,9 @@ def _apply_locked_user_settings(settings: Settings):
     settings.text_model = LOCKED_TEXT_MODEL
     settings.image_model = LOCKED_IMAGE_MODEL
     settings.image_caption_model = LOCKED_IMAGE_CAPTION_MODEL
-    settings.text_model_source = LOCKED_MODEL_SOURCE
-    settings.image_model_source = LOCKED_MODEL_SOURCE
-    settings.image_caption_model_source = LOCKED_MODEL_SOURCE
+    settings.text_model_source = LOCKED_TEXT_MODEL_SOURCE
+    settings.image_model_source = LOCKED_IMAGE_MODEL_SOURCE
+    settings.image_caption_model_source = LOCKED_IMAGE_CAPTION_MODEL_SOURCE
     settings.text_api_key = None
     settings.text_api_base_url = None
     settings.image_api_key = None
