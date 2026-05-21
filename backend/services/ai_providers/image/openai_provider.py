@@ -48,6 +48,12 @@ _RESOLUTION_LONG_EDGE = {
     '4K': 3840,
 }
 
+_HTML_RESPONSE_PREFIXES = (
+    '<!doctype html',
+    '<html',
+    '<?xml',
+)
+
 
 def _compute_gpt_image_size(aspect_ratio: str, resolution: str = '2K') -> str:
     """Dynamically compute WxH for gpt-image-* from aspect ratio and resolution.
@@ -229,6 +235,13 @@ class OpenAIImageProvider(ImageProvider):
     def _decode_raw_string(self, raw: str) -> Image.Image:
         """Try to decode a raw string as base64 image data, data-URL, or HTTP URL."""
         raw = raw.strip()
+        raw_lower = raw.lower()
+        if raw_lower.startswith(_HTML_RESPONSE_PREFIXES):
+            raise ValueError(
+                "Image API returned an HTML page instead of image data. "
+                f"Check the OpenAI-compatible base URL or switch this provider to chat mode. "
+                f"prefix={raw[:120]!r}"
+            )
         # data:image/...;base64,...
         if raw.startswith('data:image') and ',' in raw:
             b64 = raw.split(',', 1)[1]
@@ -355,7 +368,16 @@ class OpenAIImageProvider(ImageProvider):
                 or (self.image_api_protocol == 'auto' and self._is_native_images_api_model())
             )
             if use_images_api:
-                return self._generate_with_images_api(prompt, ref_images, aspect_ratio, resolution)
+                try:
+                    return self._generate_with_images_api(prompt, ref_images, aspect_ratio, resolution)
+                except Exception as images_error:
+                    if self.image_api_protocol == 'images':
+                        raise
+                    logger.warning(
+                        "images API path failed for model=%s, falling back to chat.completions: %s",
+                        self.model,
+                        images_error,
+                    )
 
             # Build message content
             content = []

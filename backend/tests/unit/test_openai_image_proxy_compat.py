@@ -83,6 +83,12 @@ class TestDecodeImageResponse:
         result = provider._decode_image_response(data_url)
         assert isinstance(result, Image.Image)
 
+    def test_html_string_raises_helpful_error(self):
+        provider = _make_provider()
+        html = "<!doctype html><html><head><title>Error</title></head><body>bad gateway</body></html>"
+        with pytest.raises(ValueError, match="HTML page instead of image data"):
+            provider._decode_image_response(html)
+
 
 class TestExtractFromImagesResult:
     """Test _extract_from_images_result with various result shapes."""
@@ -139,3 +145,28 @@ class TestExtractFromImagesResult:
         provider = _make_provider()
         with pytest.raises(ValueError, match="Unexpected images API response type"):
             provider._extract_from_images_result(12345)
+
+
+class TestGenerateImageFallback:
+    def test_auto_mode_falls_back_to_chat_when_images_api_returns_html(self):
+        with patch('services.ai_providers.image.openai_provider.OpenAI'):
+            provider = OpenAIImageProvider(
+                api_key='test',
+                api_base='http://test',
+                model='gpt-image-2',
+                image_api_protocol='auto',
+            )
+
+        html_error = "<!doctype html><html><body>proxy error</body></html>"
+        provider.client.images.generate = MagicMock(return_value=html_error)
+
+        data_url = f"data:image/png;base64,{_make_b64_png()}"
+        message = SimpleNamespace(images=[{'image_url': {'url': data_url}}], content=None)
+        response = SimpleNamespace(choices=[SimpleNamespace(message=message)])
+        provider.client.chat.completions.create = MagicMock(return_value=response)
+
+        img = provider.generate_image("test prompt", aspect_ratio="16:9", resolution="2K")
+
+        assert isinstance(img, Image.Image)
+        provider.client.images.generate.assert_called_once()
+        provider.client.chat.completions.create.assert_called_once()
