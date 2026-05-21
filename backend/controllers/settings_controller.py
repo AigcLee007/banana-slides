@@ -25,10 +25,10 @@ ALLOWED_PROVIDER_FORMATS = {"openai", "gemini", "lazyllm", "codex"} | LAZYLLM_VE
 LOCKED_AI_PROVIDER_FORMAT = "gemini"
 LOCKED_API_BASE_URL = "https://max.aittco.com"
 LOCKED_TEXT_MODEL = "gemini-3-flash-preview"
-LOCKED_IMAGE_MODEL = "gpt-image-2"
+LOCKED_IMAGE_MODEL = "gemini-3-pro-image-preview"
 LOCKED_IMAGE_CAPTION_MODEL = "gemini-3-flash-preview"
 LOCKED_TEXT_MODEL_SOURCE = "gemini"
-LOCKED_IMAGE_MODEL_SOURCE = "openai"
+LOCKED_IMAGE_MODEL_SOURCE = "gemini"
 LOCKED_IMAGE_CAPTION_MODEL_SOURCE = "gemini"
 
 settings_bp = Blueprint(

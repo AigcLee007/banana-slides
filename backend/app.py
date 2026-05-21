@@ -201,10 +201,10 @@ def _load_settings_to_config(app):
         settings.ai_provider_format = 'gemini'
         settings.api_base_url = 'https://max.aittco.com'
         settings.text_model = 'gemini-3-flash-preview'
-        settings.image_model = 'gpt-image-2'
+        settings.image_model = 'gemini-3-pro-image-preview'
         settings.image_caption_model = 'gemini-3-flash-preview'
         settings.text_model_source = 'gemini'
-        settings.image_model_source = 'openai'
+        settings.image_model_source = 'gemini'
         settings.image_caption_model_source = 'gemini'
         settings.text_api_key = None
         settings.text_api_base_url = None

@@ -334,7 +334,7 @@ def get_text_provider(model: str = "gemini-3-flash-preview") -> TextProvider:
         return GenAITextProvider(api_key=config['api_key'], api_base=config['api_base'], model=model)
 
 
-def get_image_provider(model: str = "gpt-image-2") -> ImageProvider:
+def get_image_provider(model: str = "gemini-3-pro-image-preview") -> ImageProvider:
     """Factory: return the appropriate image-generation provider.
 
     Note: OpenAI format does NOT support 4K resolution — only 1K is available.
