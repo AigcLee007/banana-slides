@@ -36,6 +36,33 @@ def _image_to_part(image: Image.Image) -> types.Part:
     return types.Part.from_bytes(data=buffer.getvalue(), mime_type=mime_type)
 
 
+def _summarize_genai_content_item(item, index: int) -> str:
+    """Return a compact, log-safe summary of one generate_content input item."""
+    if isinstance(item, str):
+        preview = item[:80].replace('\n', '\\n')
+        return f"[{index}] text len={len(item)} preview={preview!r}"
+
+    inline_data = getattr(item, "inline_data", None)
+    if inline_data is not None:
+        data = getattr(inline_data, "data", None)
+        mime_type = getattr(inline_data, "mime_type", None)
+        if isinstance(data, (bytes, bytearray)):
+            prefix = bytes(data[:12]).hex()
+            return (
+                f"[{index}] inline_data mime={mime_type!r} bytes={len(data)} "
+                f"prefix_hex={prefix}"
+            )
+        if isinstance(data, str):
+            prefix = data[:48]
+            return (
+                f"[{index}] inline_data mime={mime_type!r} str_len={len(data)} "
+                f"prefix={prefix!r}"
+            )
+        return f"[{index}] inline_data mime={mime_type!r} data_type={type(data).__name__}"
+
+    return f"[{index}] type={type(item).__name__}"
+
+
 class GenAIImageProvider(ImageProvider):
     """Image generation via Google GenAI SDK (AI Studio / Vertex AI)"""
 
@@ -99,6 +126,12 @@ class GenAIImageProvider(ImageProvider):
             
             logger.debug(f"Calling GenAI API for image generation with {len(ref_images) if ref_images else 0} reference images...")
             logger.debug(f"Config - aspect_ratio: {aspect_ratio}, resolution: {resolution}, enable_thinking: {enable_thinking}")
+            logger.warning(
+                "GenAI image request summary: model=%s items=%d details=%s",
+                self.model,
+                len(contents),
+                " | ".join(_summarize_genai_content_item(item, i) for i, item in enumerate(contents)),
+            )
             
             # Build config
             config_params = {
