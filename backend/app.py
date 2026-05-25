@@ -199,7 +199,7 @@ def _load_settings_to_config(app):
     try:
         settings = Settings.get_settings()
         settings.ai_provider_format = 'gemini'
-        settings.api_base_url = 'https://max.aittco.com'
+        settings.api_base_url = 'https://vip.aittco.com'
         settings.text_model = 'gemini-3-flash-preview'
         settings.image_model = 'gemini-3-pro-image-preview'
         settings.image_caption_model = 'gemini-3-flash-preview'

@@ -124,7 +124,7 @@ def _build_provider_config() -> Dict[str, Any]:
 
     if fmt == 'openai':
         cfg['api_key'] = _resolve_setting('OPENAI_API_KEY')
-        cfg['api_base'] = _resolve_setting('OPENAI_API_BASE', 'https://max.aittco.com')
+        cfg['api_base'] = _resolve_setting('OPENAI_API_BASE', 'https://vip.aittco.com')
 
         if not cfg['api_key']:
             raise ValueError(
@@ -230,7 +230,7 @@ def _get_model_type_provider_config(model_type: str) -> Dict[str, Any]:
         api_key = (_resolve_setting(f'{prefix}_API_KEY')
                    or _resolve_setting('OPENAI_API_KEY'))
         api_base = (_resolve_setting(f'{prefix}_API_BASE')
-                    or _resolve_setting('OPENAI_API_BASE', 'https://max.aittco.com'))
+                    or _resolve_setting('OPENAI_API_BASE', 'https://vip.aittco.com'))
 
         if not api_key:
             raise ValueError(

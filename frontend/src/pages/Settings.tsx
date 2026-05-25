@@ -9,7 +9,7 @@ type OutputLanguage = SettingsType['output_language'];
 
 const FIXED_SETTINGS = {
   ai_provider_format: 'gemini',
-  api_base_url: 'https://max.aittco.com',
+  api_base_url: 'https://vip.aittco.com',
   text_model: 'gemini-3-flash-preview',
   image_model: 'gemini-3-pro-image-preview',
   image_caption_model: 'gemini-3-flash-preview',

@@ -117,7 +117,7 @@ class Settings(db.Model):
         return {
             'id': self.id,
             'ai_provider_format': 'gemini',
-            'api_base_url': 'https://max.aittco.com',
+            'api_base_url': 'https://vip.aittco.com',
             'api_key_length': len(api_key) if api_key else 0,
             'image_resolution': self._val('image_resolution', d),
             'image_aspect_ratio': self._val('image_aspect_ratio', d),
@@ -222,7 +222,7 @@ class Settings(db.Model):
         from config import Config
         from services.ai_providers.lazyllm_env import collect_env_lazyllm_api_keys
 
-        api_base = 'https://max.aittco.com'
+        api_base = 'https://vip.aittco.com'
         api_key = None
 
         return {
