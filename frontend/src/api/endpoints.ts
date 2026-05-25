@@ -1,4 +1,4 @@
-import { apiClient } from './client';
+import { apiClient, getWorkspaceId } from './client';
 import type { Project, Task, ApiResponse, CreateProjectRequest, Page } from '@/types';
 import type { Settings } from '../types/index';
 
@@ -159,6 +159,7 @@ export const generateOutlineStream = async (
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      'X-Workspace-Id': getWorkspaceId(),
       ...(accessCode ? { 'X-Access-Code': accessCode } : {}),
     },
     body: JSON.stringify({ language: lang, lock_page_count: lockPageCount }),
@@ -272,6 +273,7 @@ export const generateDescriptionsStream = async (
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      'X-Workspace-Id': getWorkspaceId(),
       ...(accessCode ? { 'X-Access-Code': accessCode } : {}),
     },
     body: JSON.stringify({ language: lang, detail_level: detailLevel || 'default' }),

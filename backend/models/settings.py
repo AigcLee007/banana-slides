@@ -10,7 +10,8 @@ class Settings(db.Model):
     """
     __tablename__ = 'settings'
 
-    id = db.Column(db.Integer, primary_key=True, default=1)
+    id = db.Column(db.Integer, primary_key=True)
+    owner_id = db.Column(db.String(128), nullable=False, default='default', unique=True, index=True)
     ai_provider_format = db.Column(db.String(20), nullable=True)   # AI提供商格式: openai, gemini (NULL=use .env)
     api_base_url = db.Column(db.String(500), nullable=True)        # API基础URL
     api_key = db.Column(db.String(500), nullable=True)             # API密钥
@@ -116,6 +117,7 @@ class Settings(db.Model):
         image_caption_api_key = self._val('image_caption_api_key', d)
         return {
             'id': self.id,
+            'owner_id': self.owner_id,
             'ai_provider_format': 'gemini',
             'api_base_url': 'https://vip.aittco.com',
             'api_key_length': len(api_key) if api_key else 0,
@@ -247,18 +249,21 @@ class Settings(db.Model):
         }
 
     @staticmethod
-    def get_settings():
+    def get_settings(owner_id=None):
         """
-        Get or create the single settings instance.
+        Get or create the settings instance for a workspace.
 
         Returns the ORM object as-is from the database.  ``.env``
         defaults for ``None`` fields are merged only at serialisation
         time in ``to_dict()``, so this method has no write side-effects.
         """
-        settings = Settings.query.first()
+        from utils.workspace import get_workspace_id
+
+        resolved_owner_id = owner_id or get_workspace_id()
+        settings = Settings.query.filter_by(owner_id=resolved_owner_id).first()
 
         if settings is None:
-            settings = Settings(id=1)
+            settings = Settings(owner_id=resolved_owner_id)
             db.session.add(settings)
             db.session.commit()
 

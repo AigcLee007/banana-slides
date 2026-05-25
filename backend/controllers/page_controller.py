@@ -1,4 +1,4 @@
-"""
+﻿"""
 Page Controller - handles page-related endpoints
 """
 import logging
@@ -14,6 +14,7 @@ from werkzeug.utils import secure_filename
 import shutil
 import tempfile
 import json
+from utils.workspace import get_workspace_project
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +34,7 @@ def create_page(project_id):
     }
     """
     try:
-        project = Project.query.get(project_id)
+        project = get_workspace_project(project_id)
         
         if not project:
             return not_found('Project')
@@ -99,7 +100,7 @@ def delete_page(project_id, page_id):
         db.session.delete(page)
 
         # Update project
-        project = Project.query.get(project_id)
+        project = get_workspace_project(project_id)
         if project:
             project.updated_at = datetime.utcnow()
 
@@ -178,7 +179,7 @@ def update_page_outline(project_id, page_id):
         page.updated_at = datetime.utcnow()
         
         # Update project
-        project = Project.query.get(project_id)
+        project = get_workspace_project(project_id)
         if project:
             project.updated_at = datetime.utcnow()
         
@@ -201,7 +202,7 @@ def update_page_description(project_id, page_id):
         "description_content": {
             "title": "...",
             "text_content": ["...", "..."],
-            "extra_fields": {"排版布局": "..."}
+            "extra_fields": {"鎺掔増甯冨眬": "..."}
         }
     }
     """
@@ -220,7 +221,7 @@ def update_page_description(project_id, page_id):
         page.updated_at = datetime.utcnow()
         
         # Update project
-        project = Project.query.get(project_id)
+        project = get_workspace_project(project_id)
         if project:
             project.updated_at = datetime.utcnow()
         
@@ -249,7 +250,7 @@ def generate_page_description(project_id, page_id):
         if not page or page.project_id != project_id:
             return not_found('Page')
         
-        project = Project.query.get(project_id)
+        project = get_workspace_project(project_id)
         if not project:
             return not_found('Project')
         
@@ -338,7 +339,7 @@ def generate_page_image(project_id, page_id):
         if not page or page.project_id != project_id:
             return not_found('Page')
         
-        project = Project.query.get(project_id)
+        project = get_workspace_project(project_id)
         if not project:
             return not_found('Project')
         
@@ -369,9 +370,8 @@ def generate_page_image(project_id, page_id):
                 
             page_data = oc.copy()
             
-            # 如果当前页面属于一个 part
+            # 濡傛灉褰撳墠椤甸潰灞炰簬涓€涓?part
             if p.part:
-                # 如果这是新的 part，先保存之前的 part（如果有）
                 if current_part and current_part != p.part:
                     outline.append({
                         "part": current_part,
@@ -380,12 +380,10 @@ def generate_page_image(project_id, page_id):
                     current_part_pages = []
                 
                 current_part = p.part
-                # 移除 part 字段，因为它在顶层
                 if 'part' in page_data:
                     del page_data['part']
                 current_part_pages.append(page_data)
             else:
-                # 如果当前页面不属于任何 part，先保存之前的 part（如果有）
                 if current_part:
                     outline.append({
                         "part": current_part,
@@ -394,11 +392,10 @@ def generate_page_image(project_id, page_id):
                     current_part = None
                     current_part_pages = []
                 
-                # 直接添加页面
+                # 鐩存帴娣诲姞椤甸潰
                 outline.append(page_data)
         
-        # 保存最后一个 part（如果有）
-        if current_part:
+        # 淇濆瓨鏈€鍚庝竴涓?part锛堝鏋滄湁锛?        if current_part:
             outline.append({
                 "part": current_part,
                 "pages": current_part_pages
@@ -414,9 +411,7 @@ def generate_page_image(project_id, page_id):
         if use_template:
             ref_image_path = file_service.get_template_path(project_id)
         
-        # 检查是否有模板图片或风格描述
-        # 如果都没有，则返回错误
-        if not ref_image_path and not project.template_style:
+        # 妫€鏌ユ槸鍚︽湁妯℃澘鍥剧墖鎴栭鏍兼弿杩?        # 濡傛灉閮芥病鏈夛紝鍒欒繑鍥為敊璇?        if not ref_image_path and not project.template_style:
             return bad_request("No template image or style description found for project")
         
         # Generate prompt
@@ -424,21 +419,19 @@ def generate_page_image(project_id, page_id):
         if page.part:
             page_data['part'] = page.part
         
-        # 获取描述文本（可能是 text 字段或 text_content 数组）
-        desc_text = desc_content.get('text', '')
+        # 鑾峰彇鎻忚堪鏂囨湰锛堝彲鑳芥槸 text 瀛楁鎴?text_content 鏁扮粍锛?        desc_text = desc_content.get('text', '')
         if not desc_text and desc_content.get('text_content'):
-            # 如果 text 字段不存在，尝试从 text_content 数组获取
+            # 濡傛灉 text 瀛楁涓嶅瓨鍦紝灏濊瘯浠?text_content 鏁扮粍鑾峰彇
             text_content = desc_content.get('text_content', [])
             if isinstance(text_content, list):
                 desc_text = '\n'.join(text_content)
             else:
                 desc_text = str(text_content)
         
-        # 从当前页面的描述内容中提取图片 URL（在生成 prompt 之前提取，以便告知 AI）
-        additional_ref_images = []
+        # 浠庡綋鍓嶉〉闈㈢殑鎻忚堪鍐呭涓彁鍙栧浘鐗?URL锛堝湪鐢熸垚 prompt 涔嬪墠鎻愬彇锛屼互渚垮憡鐭?AI锛?        additional_ref_images = []
         has_material_images = False
         
-        # 从描述文本中提取图片
+        # 浠庢弿杩版枃鏈腑鎻愬彇鍥剧墖
         if desc_text:
             image_urls = ai_service.extract_image_urls_from_markdown(desc_text)
             if image_urls:
@@ -446,10 +439,9 @@ def generate_page_image(project_id, page_id):
                 additional_ref_images = image_urls
                 has_material_images = True
         
-        # 合并额外要求和风格描述
-        combined_requirements = project.extra_requirements or ""
+        # 鍚堝苟棰濆瑕佹眰鍜岄鏍兼弿杩?        combined_requirements = project.extra_requirements or ""
         if project.template_style:
-            style_requirement = f"\n\nppt页面风格描述：\n\n{project.template_style}"
+            style_requirement = f"\n\nppt椤甸潰椋庢牸鎻忚堪锛歕n\n{project.template_style}"
             combined_requirements = combined_requirements + style_requirement
         
         # Create async task for image generation
@@ -505,11 +497,11 @@ def edit_page_image(project_id, page_id):
     
     Request body (JSON or multipart/form-data):
     {
-        "edit_instruction": "更改文本框样式为虚线",
+        "edit_instruction": "鏇存敼鏂囨湰妗嗘牱寮忎负铏氱嚎",
         "context_images": {
-            "use_template": true,  // 是否使用template图片
-            "desc_image_urls": ["url1", "url2"],  // desc中的图片URL列表
-            "uploaded_image_ids": ["file1", "file2"]  // 上传的图片文件ID列表（在multipart中）
+            "use_template": true,  // 鏄惁浣跨敤template鍥剧墖
+            "desc_image_urls": ["url1", "url2"],  // desc涓殑鍥剧墖URL鍒楄〃
+            "uploaded_image_ids": ["file1", "file2"]  // 涓婁紶鐨勫浘鐗囨枃浠禝D鍒楄〃锛堝湪multipart涓級
         }
     }
     
@@ -528,7 +520,7 @@ def edit_page_image(project_id, page_id):
         if not page.generated_image_path:
             return bad_request("Page must have generated image first")
         
-        project = Project.query.get(project_id)
+        project = get_workspace_project(project_id)
         if not project:
             return not_found('Project')
         
@@ -718,15 +710,14 @@ def set_current_image_version(project_id, page_id, version_id):
         version.is_current = True
         page.generated_image_path = version.image_path
 
-        # 更新 cached_image_path，指向该版本的缓存图（如果存在）
+        # 鏇存柊 cached_image_path锛屾寚鍚戣鐗堟湰鐨勭紦瀛樺浘锛堝鏋滃瓨鍦級
         file_service = FileService(current_app.config['UPLOAD_FOLDER'])
         cached_relative_path = file_service.get_cached_image_path(project_id, page_id, version.version_number)
         if file_service.file_exists(cached_relative_path):
             page.cached_image_path = cached_relative_path
         else:
-            # 缓存文件不存在，设置为 None，to_dict() 会回退到原图
+            # Cached image for this version is missing; fall back to the original image.
             page.cached_image_path = None
-
         page.updated_at = datetime.utcnow()
         
         db.session.commit()
@@ -752,7 +743,7 @@ def regenerate_renovation_page(project_id, page_id):
         if not page or page.project_id != project_id:
             return not_found('Page')
 
-        project = Project.query.get(project_id)
+        project = get_workspace_project(project_id)
         if not project:
             return not_found('Project')
 
@@ -788,7 +779,7 @@ def regenerate_renovation_page(project_id, page_id):
         )
         file_service = FileService(current_app.config['UPLOAD_FOLDER'])
 
-        # Step 1: Parse page PDF → markdown
+        # Step 1: Parse page PDF 鈫?markdown
         logger.info(f"Regenerating renovation page {page.order_index + 1}: parsing PDF...")
         filename = f"page_{page.order_index + 1}.pdf"
         _batch_id, md_text, extract_id, error_msg, _failed = file_parser_service.parse_file(
@@ -856,10 +847,8 @@ def regenerate_renovation_page(project_id, page_id):
         return error_response('SERVER_ERROR', str(e), 500)
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# 旁白 (Narration) 相关接口 — TTS 播报视频
-# ═══════════════════════════════════════════════════════════════════════════════
-
+# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?# 鏃佺櫧 (Narration) 鐩稿叧鎺ュ彛 鈥?TTS 鎾姤瑙嗛
+# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
 
 @page_bp.route('/<project_id>/pages/<page_id>/narration', methods=['PUT'])
 def update_page_narration(project_id, page_id):
@@ -868,7 +857,7 @@ def update_page_narration(project_id, page_id):
 
     Request body:
     {
-        "narration_text": "这段内容介绍了……"
+        "narration_text": "杩欐鍐呭浠嬬粛浜嗏€︹€?
     }
     """
     try:
@@ -885,7 +874,7 @@ def update_page_narration(project_id, page_id):
         page.set_narration_text(data['narration_text'])
         page.updated_at = datetime.utcnow()
 
-        project = Project.query.get(project_id)
+        project = get_workspace_project(project_id)
         if project:
             project.updated_at = datetime.utcnow()
 
@@ -916,7 +905,7 @@ def generate_page_narration(project_id, page_id):
         if not page or page.project_id != project_id:
             return not_found('Page')
 
-        project = Project.query.get(project_id)
+        project = get_workspace_project(project_id)
         if not project:
             return not_found('Project')
 
@@ -1000,7 +989,7 @@ def generate_all_narrations(project_id):
     }
     """
     try:
-        project = Project.query.get(project_id)
+        project = get_workspace_project(project_id)
         if not project:
             return not_found('Project')
 

@@ -12,6 +12,13 @@ from .validators import validate_project_status, validate_page_status, allowed_f
 from .path_utils import convert_mineru_path_to_local, find_mineru_file_with_prefix, find_file_with_prefix
 from .pptx_builder import PPTXBuilder
 from .page_utils import parse_page_ids_from_query, parse_page_ids_from_body, get_filtered_pages
+from .workspace import (
+    WORKSPACE_HEADER,
+    DEFAULT_WORKSPACE_ID,
+    get_workspace_id,
+    normalize_workspace_id,
+    set_workspace_id,
+)
 
 __all__ = [
     'success_response',
@@ -30,6 +37,10 @@ __all__ = [
     'PPTXBuilder',
     'parse_page_ids_from_query',
     'parse_page_ids_from_body',
-    'get_filtered_pages'
+    'get_filtered_pages',
+    'WORKSPACE_HEADER',
+    'DEFAULT_WORKSPACE_ID',
+    'get_workspace_id',
+    'normalize_workspace_id',
+    'set_workspace_id',
 ]
-

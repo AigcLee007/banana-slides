@@ -14,6 +14,7 @@ class Task(db.Model):
     __tablename__ = 'tasks'
     
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    owner_id = db.Column(db.String(128), nullable=False, default='default', index=True)
     project_id = db.Column(db.String(36), db.ForeignKey('projects.id'), nullable=False)
     task_type = db.Column(db.String(50), nullable=False)  # GENERATE_DESCRIPTIONS|GENERATE_IMAGES
     status = db.Column(db.String(50), nullable=False, default='PENDING')
@@ -54,6 +55,7 @@ class Task(db.Model):
         """Convert to dictionary"""
         return {
             'task_id': self.id,
+            'owner_id': self.owner_id,
             'task_type': self.task_type,
             'status': self.status,
             'progress': self.get_progress(),
@@ -64,4 +66,3 @@ class Task(db.Model):
     
     def __repr__(self):
         return f'<Task {self.id}: {self.task_type} - {self.status}>'
-

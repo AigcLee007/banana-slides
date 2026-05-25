@@ -35,6 +35,31 @@ __all__ = [
 # LazyLLM vendor names (used to distinguish from gemini/openai formats)
 LAZYLLM_VENDORS = {'qwen', 'doubao', 'deepseek', 'glm', 'siliconflow', 'sensenova', 'minimax', 'kimi'}
 
+_SETTINGS_KEY_MAP = {
+    'AI_PROVIDER_FORMAT': 'ai_provider_format',
+    'GOOGLE_API_KEY': 'api_key',
+    'OPENAI_API_KEY': 'api_key',
+    'GOOGLE_API_BASE': 'api_base_url',
+    'OPENAI_API_BASE': 'api_base_url',
+    'TEXT_MODEL': 'text_model',
+    'IMAGE_MODEL': 'image_model',
+    'IMAGE_CAPTION_MODEL': 'image_caption_model',
+    'OUTPUT_LANGUAGE': 'output_language',
+    'MINERU_API_BASE': 'mineru_api_base',
+    'MINERU_TOKEN': 'mineru_token',
+    'BAIDU_API_KEY': 'baidu_api_key',
+    'TEXT_MODEL_SOURCE': 'text_model_source',
+    'IMAGE_MODEL_SOURCE': 'image_model_source',
+    'IMAGE_CAPTION_MODEL_SOURCE': 'image_caption_model_source',
+    'TEXT_API_KEY': 'text_api_key',
+    'TEXT_API_BASE': 'text_api_base_url',
+    'IMAGE_API_KEY': 'image_api_key',
+    'IMAGE_API_BASE': 'image_api_base_url',
+    'IMAGE_CAPTION_API_KEY': 'image_caption_api_key',
+    'IMAGE_CAPTION_API_BASE': 'image_caption_api_base_url',
+    'OPENAI_IMAGE_API_PROTOCOL': 'openai_image_api_protocol',
+}
+
 
 def _get_openai_oauth_token() -> Optional[str]:
     """Try to get a valid OpenAI OAuth token from the database."""
@@ -63,19 +88,7 @@ def get_provider_format() -> str:
         "gemini", "openai", "vertex", "lazyllm", or a lazyllm vendor name
         (e.g., "doubao", "qwen", "deepseek")
     """
-    # Try to get from Flask app config first (database settings)
-    try:
-        from flask import current_app
-        if current_app and hasattr(current_app, 'config'):
-            config_value = current_app.config.get('AI_PROVIDER_FORMAT')
-            if config_value:
-                return str(config_value).lower()
-    except RuntimeError:
-        # Not in Flask application context
-        pass
-
-    # Fallback to environment variable
-    return os.getenv('AI_PROVIDER_FORMAT', 'gemini').lower()
+    return (_resolve_setting('AI_PROVIDER_FORMAT', 'gemini') or 'gemini').lower()
 
 
 def _resolve_setting(key: str, fallback: Optional[str] = None) -> Optional[str]:
@@ -86,7 +99,25 @@ def _resolve_setting(key: str, fallback: Optional[str] = None) -> Optional[str]:
         2. OS environment variable
         3. *fallback* argument (may be ``None``)
     """
-    # 1) Try Flask app.config
+    # 1) Try workspace-scoped database settings bound to the current app/request context
+    try:
+        from flask import has_app_context
+        if has_app_context():
+            from models import Settings
+
+            settings = Settings.get_settings()
+            attr_name = _SETTINGS_KEY_MAP.get(key)
+            if attr_name:
+                val = getattr(settings, attr_name, None)
+                if val is not None:
+                    logger.debug("Setting %s resolved from workspace settings", key)
+                    return str(val)
+    except RuntimeError:
+        pass
+    except Exception:
+        logger.debug("Failed to resolve %s from workspace settings", key, exc_info=True)
+
+    # 2) Try Flask app.config
     try:
         from flask import current_app
         if current_app and hasattr(current_app, 'config') and key in current_app.config:
@@ -97,13 +128,13 @@ def _resolve_setting(key: str, fallback: Optional[str] = None) -> Optional[str]:
     except RuntimeError:
         pass  # outside Flask request context
 
-    # 2) Try environment
+    # 3) Try environment
     env_val = os.getenv(key)
     if env_val is not None:
         logger.debug("Setting %s resolved from environment", key)
         return env_val
 
-    # 3) Fallback
+    # 4) Fallback
     if fallback is not None:
         logger.debug("Setting %s using fallback: %s", key, fallback)
     return fallback

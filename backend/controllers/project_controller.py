@@ -29,6 +29,13 @@ from utils import (
     success_response, error_response, not_found, bad_request,
     parse_page_ids_from_body, get_filtered_pages
 )
+from utils.workspace import (
+    add_workspace_filter,
+    get_workspace_id,
+    get_workspace_project,
+    get_workspace_config_value,
+    set_workspace_id,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +54,7 @@ def _get_project_reference_files_content(project_id: str) -> list:
     """
     reference_files = ReferenceFile.query.filter_by(
         project_id=project_id,
+        owner_id=get_workspace_id(),
         parse_status='completed'
     ).all()
     
@@ -184,9 +192,9 @@ def list_projects():
         offset = max(0, offset)  # Non-negative
 
         # Get total count for pagination
-        total = Project.query.count()
+        total = add_workspace_filter(Project.query, Project).count()
 
-        projects = Project.query\
+        projects = add_workspace_filter(Project.query, Project)\
             .options(joinedload(Project.pages))\
             .order_by(desc(Project.updated_at))\
             .limit(limit)\
@@ -244,6 +252,7 @@ def create_project():
 
         # Create project
         project = Project(
+            owner_id=get_workspace_id(),
             creation_type=creation_type,
             idea_prompt=data.get('idea_prompt'),
             outline_text=data.get('outline_text'),
@@ -282,7 +291,7 @@ def get_project(project_id):
     """
     try:
         # Use eager loading to load project and related pages
-        project = Project.query\
+        project = add_workspace_filter(Project.query, Project)\
             .options(joinedload(Project.pages))\
             .filter(Project.id == project_id)\
             .first()
@@ -310,7 +319,7 @@ def update_project(project_id):
     """
     try:
         # Use eager loading to load project and pages (for page order updates)
-        project = Project.query\
+        project = add_workspace_filter(Project.query, Project)\
             .options(joinedload(Project.pages))\
             .filter(Project.id == project_id)\
             .first()
@@ -401,7 +410,7 @@ def delete_project(project_id):
     DELETE /api/projects/{project_id} - Delete project
     """
     try:
-        project = Project.query.get(project_id)
+        project = get_workspace_project(project_id)
         
         if not project:
             return not_found('Project')
@@ -439,7 +448,7 @@ def generate_outline(project_id):
     }
     """
     try:
-        project = Project.query.get(project_id)
+        project = get_workspace_project(project_id)
         
         if not project:
             return not_found('Project')
@@ -529,7 +538,7 @@ def generate_outline_stream(project_id):
       event: error   — error occurred {message}
     """
     # Validate project exists before entering the generator
-    project = Project.query.get(project_id)
+    project = get_workspace_project(project_id)
     if not project:
         return not_found('Project')
 
@@ -543,7 +552,11 @@ def generate_outline_stream(project_id):
         with app.app_context():
             try:
                 # Re-fetch project inside app context to attach to this session
-                proj = db.session.get(Project, project_id)
+                proj = get_workspace_project(project_id)
+                if not proj:
+                    yield _sse_event('error', {'message': 'Project not found'})
+                    return
+                set_workspace_id(proj.owner_id)
                 ai_service = get_ai_service()
                 reference_files_content = _get_project_reference_files_content(project_id)
 
@@ -655,7 +668,7 @@ def generate_from_description(project_id):
     """
     
     try:
-        project = Project.query.get(project_id)
+        project = get_workspace_project(project_id)
         
         if not project:
             return not_found('Project')
@@ -765,7 +778,7 @@ def generate_descriptions(project_id):
     }
     """
     try:
-        project = Project.query.get(project_id)
+        project = get_workspace_project(project_id)
         
         if not project:
             return not_found('Project')
@@ -793,6 +806,7 @@ def generate_descriptions(project_id):
         
         # Create task
         task = Task(
+            owner_id=project.owner_id,
             project_id=project_id,
             task_type='GENERATE_DESCRIPTIONS',
             status='PENDING'
@@ -858,7 +872,7 @@ def generate_descriptions_stream(project_id):
       event: done        — {total, pages: [...]}
       event: error       — {message}
     """
-    project = Project.query.get(project_id)
+    project = get_workspace_project(project_id)
     if not project:
         return not_found('Project')
 
@@ -874,7 +888,11 @@ def generate_descriptions_stream(project_id):
     def sse_generate():
         with app.app_context():
             try:
-                proj = db.session.get(Project, project_id)
+                proj = get_workspace_project(project_id)
+                if not proj:
+                    yield _sse_event('error', {'message': 'Project not found'})
+                    return
+                set_workspace_id(proj.owner_id)
                 ai_service = get_ai_service()
                 reference_files_content = _get_project_reference_files_content(project_id)
                 project_context = ProjectContext(proj, reference_files_content)
@@ -956,7 +974,7 @@ def generate_descriptions_stream(project_id):
                 # 恢复未完成页面的状态：已生成描述的保留，未生成的恢复为 DRAFT
                 try:
                     pages = Page.query.filter_by(project_id=project_id).order_by(Page.order_index).all()
-                    proj = db.session.get(Project, project_id)
+                    proj = get_workspace_project(project_id)
                     has_any_desc = False
                     for page in pages:
                         if page.status == 'GENERATING_DESCRIPTION':
@@ -1002,7 +1020,7 @@ def generate_images(project_id):
     }
     """
     try:
-        project = Project.query.get(project_id)
+        project = get_workspace_project(project_id)
         
         if not project:
             return not_found('Project')
@@ -1043,6 +1061,7 @@ def generate_images(project_id):
         
         # Create task
         task = Task(
+            owner_id=project.owner_id,
             project_id=project_id,
             task_type='GENERATE_IMAGES',
             status='PENDING'
@@ -1138,7 +1157,7 @@ def refine_outline(project_id):
     }
     """
     try:
-        project = Project.query.get(project_id)
+        project = get_workspace_project(project_id)
         
         if not project:
             return not_found('Project')
@@ -1235,7 +1254,7 @@ def refine_descriptions(project_id):
     }
     """
     try:
-        project = Project.query.get(project_id)
+        project = get_workspace_project(project_id)
         
         if not project:
             return not_found('Project')
@@ -1530,6 +1549,7 @@ def create_ppt_renovation_project():
 
         # Create async task
         task = Task(
+            owner_id=project.owner_id,
             project_id=project_id,
             task_type='PPT_RENOVATION',
             status='PENDING'
@@ -1547,15 +1567,15 @@ def create_ppt_renovation_project():
         ai_service = get_ai_service()
         from services.file_parser_service import FileParserService
         file_parser_service = FileParserService(
-            mineru_token=current_app.config['MINERU_TOKEN'],
-            mineru_api_base=current_app.config['MINERU_API_BASE'],
-            google_api_key=current_app.config.get('GOOGLE_API_KEY', ''),
-            google_api_base=current_app.config.get('GOOGLE_API_BASE', ''),
-            openai_api_key=current_app.config.get('OPENAI_API_KEY', ''),
-            openai_api_base=current_app.config.get('OPENAI_API_BASE', ''),
-            image_caption_model=current_app.config['IMAGE_CAPTION_MODEL'],
-            provider_format=current_app.config.get('AI_PROVIDER_FORMAT', 'gemini'),
-            lazyllm_image_caption_source=current_app.config.get('IMAGE_CAPTION_MODEL_SOURCE', 'doubao'),
+            mineru_token=get_workspace_config_value('MINERU_TOKEN', current_app.config['MINERU_TOKEN']),
+            mineru_api_base=get_workspace_config_value('MINERU_API_BASE', current_app.config['MINERU_API_BASE']),
+            google_api_key=get_workspace_config_value('GOOGLE_API_KEY', ''),
+            google_api_base=get_workspace_config_value('GOOGLE_API_BASE', ''),
+            openai_api_key=get_workspace_config_value('OPENAI_API_KEY', ''),
+            openai_api_base=get_workspace_config_value('OPENAI_API_BASE', ''),
+            image_caption_model=get_workspace_config_value('IMAGE_CAPTION_MODEL', current_app.config['IMAGE_CAPTION_MODEL']),
+            provider_format=get_workspace_config_value('AI_PROVIDER_FORMAT', current_app.config.get('AI_PROVIDER_FORMAT', 'gemini')),
+            lazyllm_image_caption_source=get_workspace_config_value('IMAGE_CAPTION_MODEL_SOURCE', current_app.config.get('IMAGE_CAPTION_MODEL_SOURCE', 'doubao')),
         )
 
         app = current_app._get_current_object()

@@ -22,6 +22,7 @@ from flask import Blueprint, request
 
 from models import db, Settings
 from utils import success_response, error_response
+from utils.workspace import get_workspace_id, set_workspace_id
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +56,7 @@ def authorize():
     _pending_flows[state] = {
         "code_verifier": code_verifier,
         "app": current_app._get_current_object(),
+        "workspace_id": get_workspace_id(),
     }
 
     _ensure_callback_server()
@@ -171,6 +173,7 @@ def manual_callback():
 
     code_verifier = flow["code_verifier"]
     app = flow.get("app")
+    workspace_id = flow.get("workspace_id")
 
     try:
         resp = http_requests.post(
@@ -197,7 +200,8 @@ def manual_callback():
     account_id = _extract_account_id(token_data.get("id_token"))
 
     with app.app_context() if app else nullcontext():
-        settings = Settings.get_settings()
+        set_workspace_id(workspace_id)
+        settings = Settings.get_settings(workspace_id)
         settings.openai_oauth_access_token = access_token
         settings.openai_oauth_refresh_token = refresh_token
         settings.openai_oauth_expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
@@ -276,7 +280,8 @@ class _OAuthCallbackHandler(BaseHTTPRequestHandler):
         account_id = _extract_account_id(data.get("id_token"))
 
         with app.app_context():
-            settings = Settings.get_settings()
+            set_workspace_id(flow.get("workspace_id"))
+            settings = Settings.get_settings(flow.get("workspace_id"))
             settings.openai_oauth_access_token = access_token
             settings.openai_oauth_refresh_token = refresh_token
             settings.openai_oauth_expires_at = datetime.utcnow() + timedelta(seconds=expires_in)

@@ -15,6 +15,7 @@ import threading
 
 from models import db, ReferenceFile, Project
 from utils.response import success_response, error_response, bad_request, not_found
+from utils.workspace import get_workspace_id, get_workspace_project, get_workspace_config_value, set_workspace_id
 from services.file_parser_service import FileParserService
 
 logger = logging.getLogger(__name__)
@@ -51,6 +52,7 @@ def _parse_file_async(file_id: str, file_path: str, filename: str, app):
             if not reference_file:
                 logger.error(f"Reference file {file_id} not found")
                 return
+            set_workspace_id(reference_file.owner_id)
             
             # Update status to parsing
             reference_file.parse_status = 'parsing'
@@ -58,15 +60,15 @@ def _parse_file_async(file_id: str, file_path: str, filename: str, app):
             
             # Initialize parser service
             parser = FileParserService(
-                mineru_token=current_app.config['MINERU_TOKEN'],
-                mineru_api_base=current_app.config['MINERU_API_BASE'],
-                google_api_key=current_app.config.get('GOOGLE_API_KEY', ''),
-                google_api_base=current_app.config.get('GOOGLE_API_BASE', ''),
-                openai_api_key=current_app.config.get('OPENAI_API_KEY', ''),
-                openai_api_base=current_app.config.get('OPENAI_API_BASE', ''),
-                image_caption_model=current_app.config['IMAGE_CAPTION_MODEL'],
-                provider_format=current_app.config.get('AI_PROVIDER_FORMAT', 'gemini'),
-                lazyllm_image_caption_source=current_app.config.get('IMAGE_CAPTION_MODEL_SOURCE', 'doubao'),
+                mineru_token=get_workspace_config_value('MINERU_TOKEN', current_app.config['MINERU_TOKEN']),
+                mineru_api_base=get_workspace_config_value('MINERU_API_BASE', current_app.config['MINERU_API_BASE']),
+                google_api_key=get_workspace_config_value('GOOGLE_API_KEY', ''),
+                google_api_base=get_workspace_config_value('GOOGLE_API_BASE', ''),
+                openai_api_key=get_workspace_config_value('OPENAI_API_KEY', ''),
+                openai_api_base=get_workspace_config_value('OPENAI_API_BASE', ''),
+                image_caption_model=get_workspace_config_value('IMAGE_CAPTION_MODEL', current_app.config['IMAGE_CAPTION_MODEL']),
+                provider_format=get_workspace_config_value('AI_PROVIDER_FORMAT', current_app.config.get('AI_PROVIDER_FORMAT', 'gemini')),
+                lazyllm_image_caption_source=get_workspace_config_value('IMAGE_CAPTION_MODEL_SOURCE', current_app.config.get('IMAGE_CAPTION_MODEL_SOURCE', 'doubao')),
             )
             
             # Parse file
@@ -154,7 +156,7 @@ def upload_reference_file():
             project_id = None
         else:
             # Verify project exists
-            project = Project.query.get(project_id)
+            project = get_workspace_project(project_id)
             if not project:
                 return not_found('Project')
         
@@ -188,6 +190,7 @@ def upload_reference_file():
         
         # Create database record
         reference_file = ReferenceFile(
+            owner_id=get_workspace_id(),
             project_id=project_id,
             filename=original_filename,
             file_path=str(file_path.relative_to(upload_folder)),
@@ -220,7 +223,7 @@ def get_reference_file(file_id):
         Reference file information including parse status
     """
     try:
-        reference_file = ReferenceFile.query.get(file_id)
+        reference_file = ReferenceFile.query.filter_by(id=file_id, owner_id=get_workspace_id()).first()
         if not reference_file:
             return not_found('Reference file')
         
@@ -241,7 +244,7 @@ def delete_reference_file(file_id):
         Success message
     """
     try:
-        reference_file = ReferenceFile.query.get(file_id)
+        reference_file = ReferenceFile.query.filter_by(id=file_id, owner_id=get_workspace_id()).first()
         if not reference_file:
             return not_found('Reference file')
         
@@ -284,17 +287,17 @@ def list_project_reference_files(project_id):
     try:
         # Special case: 'all' means list all files
         if project_id == 'all':
-            reference_files = ReferenceFile.query.all()
+            reference_files = ReferenceFile.query.filter_by(owner_id=get_workspace_id()).all()
         # Special case: 'global' or 'none' means list global files (not associated with any project)
         elif project_id in ['global', 'none']:
-            reference_files = ReferenceFile.query.filter_by(project_id=None).all()
+            reference_files = ReferenceFile.query.filter_by(owner_id=get_workspace_id(), project_id=None).all()
         else:
             # Verify project exists
-            project = Project.query.get(project_id)
+            project = get_workspace_project(project_id)
             if not project:
                 return not_found('Project')
             
-            reference_files = ReferenceFile.query.filter_by(project_id=project_id).all()
+            reference_files = ReferenceFile.query.filter_by(owner_id=get_workspace_id(), project_id=project_id).all()
         
         # 列表查询时不包含 markdown_content 和失败计数，加快响应速度
         return success_response({
@@ -315,7 +318,7 @@ def trigger_file_parse(file_id):
         Updated reference file information
     """
     try:
-        reference_file = ReferenceFile.query.get(file_id)
+        reference_file = ReferenceFile.query.filter_by(id=file_id, owner_id=get_workspace_id()).first()
         if not reference_file:
             return not_found('Reference file')
         
@@ -376,7 +379,7 @@ def associate_file_to_project(file_id):
         Updated reference file information
     """
     try:
-        reference_file = ReferenceFile.query.get(file_id)
+        reference_file = ReferenceFile.query.filter_by(id=file_id, owner_id=get_workspace_id()).first()
         if not reference_file:
             return not_found('Reference file')
         
@@ -387,7 +390,7 @@ def associate_file_to_project(file_id):
             return bad_request("project_id is required")
         
         # Verify project exists
-        project = Project.query.get(project_id)
+        project = get_workspace_project(project_id)
         if not project:
             return not_found('Project')
         
@@ -417,7 +420,7 @@ def dissociate_file_from_project(file_id):
         Updated reference file information
     """
     try:
-        reference_file = ReferenceFile.query.get(file_id)
+        reference_file = ReferenceFile.query.filter_by(id=file_id, owner_id=get_workspace_id()).first()
         if not reference_file:
             return not_found('Reference file')
         
@@ -433,4 +436,3 @@ def dissociate_file_from_project(file_id):
     except Exception as e:
         logger.error(f"Error dissociating reference file: {str(e)}", exc_info=True)
         return error_response('SERVER_ERROR', str(e), 500)
-

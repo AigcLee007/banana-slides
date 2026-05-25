@@ -3,6 +3,24 @@ import axios from 'axios';
 // 开发环境：通过 Vite proxy 转发
 // 生产环境：通过 nginx proxy 转发
 const API_BASE_URL = '';
+const WORKSPACE_STORAGE_KEY = 'banana-workspace-id';
+
+const generateWorkspaceId = (): string => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `ws_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+};
+
+export const getWorkspaceId = (): string => {
+  const existing = localStorage.getItem(WORKSPACE_STORAGE_KEY);
+  if (existing) {
+    return existing;
+  }
+  const created = generateWorkspaceId();
+  localStorage.setItem(WORKSPACE_STORAGE_KEY, created);
+  return created;
+};
 
 // 创建 axios 实例
 export const apiClient = axios.create({
@@ -17,6 +35,9 @@ apiClient.interceptors.request.use(
     const accessCode = localStorage.getItem('banana-access-code');
     if (accessCode && config.headers) {
       config.headers['X-Access-Code'] = accessCode;
+    }
+    if (config.headers) {
+      config.headers['X-Workspace-Id'] = getWorkspaceId();
     }
 
     // 如果请求体是 FormData，删除 Content-Type 让浏览器自动设置
@@ -82,4 +103,3 @@ export const getImageUrl = (path?: string, timestamp?: string | number): string 
 };
 
 export default apiClient;
-

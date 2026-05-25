@@ -5,6 +5,7 @@ import logging
 from flask import Blueprint, request, current_app
 from models import db, Project, UserTemplate, UserStyleTemplate
 from utils import success_response, error_response, not_found, bad_request, allowed_file
+from utils.workspace import get_workspace_project
 from services import FileService
 from datetime import datetime
 
@@ -24,7 +25,7 @@ def upload_template(project_id):
     Form: template_image=@file.png
     """
     try:
-        project = Project.query.get(project_id)
+        project = get_workspace_project(project_id)
         
         if not project:
             return not_found('Project')
@@ -67,7 +68,7 @@ def delete_template(project_id):
     DELETE /api/projects/{project_id}/template - Delete template
     """
     try:
-        project = Project.query.get(project_id)
+        project = get_workspace_project(project_id)
         
         if not project:
             return not_found('Project')
@@ -270,4 +271,3 @@ def delete_user_style_template(template_id):
     except Exception as e:
         db.session.rollback()
         return error_response('SERVER_ERROR', str(e), 500)
-

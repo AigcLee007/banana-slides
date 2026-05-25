@@ -24,11 +24,12 @@ from typing import Optional
 from flask import current_app, has_app_context
 from .ai_service import AIService
 from .ai_providers import get_text_provider, get_image_provider, get_caption_provider, TextProvider, ImageProvider
+from utils.workspace import get_workspace_id
 
 logger = logging.getLogger(__name__)
 
-# Global singleton instance
-_ai_service_instance: Optional[AIService] = None
+# Workspace-scoped singleton instances
+_ai_service_instances: dict = {}
 _lock = Lock()
 
 # Provider cache to avoid re-initialization when models don't change
@@ -38,7 +39,7 @@ _caption_provider_cache: dict = {}
 _cache_lock = Lock()
 
 
-def _get_cached_text_provider(model: str) -> TextProvider:
+def _get_cached_text_provider(workspace_id: str, model: str) -> TextProvider:
     """
     Get or create a cached text provider instance
     
@@ -48,16 +49,17 @@ def _get_cached_text_provider(model: str) -> TextProvider:
     Returns:
         Cached or new TextProvider instance
     """
+    cache_key = (workspace_id, model)
     with _cache_lock:
-        if model not in _text_provider_cache:
-            logger.info(f"Creating new TextProvider for model: {model}")
-            _text_provider_cache[model] = get_text_provider(model=model)
+        if cache_key not in _text_provider_cache:
+            logger.info(f"Creating new TextProvider for workspace={workspace_id}, model={model}")
+            _text_provider_cache[cache_key] = get_text_provider(model=model)
         else:
-            logger.debug(f"Reusing cached TextProvider for model: {model}")
-        return _text_provider_cache[model]
+            logger.debug(f"Reusing cached TextProvider for workspace={workspace_id}, model={model}")
+        return _text_provider_cache[cache_key]
 
 
-def _get_cached_image_provider(model: str) -> ImageProvider:
+def _get_cached_image_provider(workspace_id: str, model: str) -> ImageProvider:
     """
     Get or create a cached image provider instance
     
@@ -67,22 +69,24 @@ def _get_cached_image_provider(model: str) -> ImageProvider:
     Returns:
         Cached or new ImageProvider instance
     """
+    cache_key = (workspace_id, model)
     with _cache_lock:
-        if model not in _image_provider_cache:
-            logger.info(f"Creating new ImageProvider for model: {model}")
-            _image_provider_cache[model] = get_image_provider(model=model)
+        if cache_key not in _image_provider_cache:
+            logger.info(f"Creating new ImageProvider for workspace={workspace_id}, model={model}")
+            _image_provider_cache[cache_key] = get_image_provider(model=model)
         else:
-            logger.debug(f"Reusing cached ImageProvider for model: {model}")
-        return _image_provider_cache[model]
+            logger.debug(f"Reusing cached ImageProvider for workspace={workspace_id}, model={model}")
+        return _image_provider_cache[cache_key]
 
 
-def _get_cached_caption_provider(model: str) -> TextProvider:
+def _get_cached_caption_provider(workspace_id: str, model: str) -> TextProvider:
     """Get or create a cached caption provider instance"""
+    cache_key = (workspace_id, model)
     with _cache_lock:
-        if model not in _caption_provider_cache:
-            logger.info(f"Creating new CaptionProvider for model: {model}")
-            _caption_provider_cache[model] = get_caption_provider(model=model)
-        return _caption_provider_cache[model]
+        if cache_key not in _caption_provider_cache:
+            logger.info(f"Creating new CaptionProvider for workspace={workspace_id}, model={model}")
+            _caption_provider_cache[cache_key] = get_caption_provider(model=model)
+        return _caption_provider_cache[cache_key]
 
 
 def get_ai_service(force_new: bool = False) -> AIService:
@@ -103,18 +107,18 @@ def get_ai_service(force_new: bool = False) -> AIService:
         The providers are cached per model name. If TEXT_MODEL or IMAGE_MODEL
         changes in Flask config, new providers will be created automatically.
     """
-    global _ai_service_instance
+    workspace_id = get_workspace_id() if has_app_context() else "default"
     
     if force_new:
         with _lock:
-            logger.info("Force creating new AIService instance")
-            _ai_service_instance = None
+            logger.info("Force creating new AIService instance for workspace=%s", workspace_id)
+            _ai_service_instances.pop(workspace_id, None)
     
-    if _ai_service_instance is None:
+    if workspace_id not in _ai_service_instances:
         with _lock:
             # Double-check locking pattern
-            if _ai_service_instance is None:
-                logger.info("Initializing AIService singleton with provider caching")
+            if workspace_id not in _ai_service_instances:
+                logger.info("Initializing AIService singleton with provider caching for workspace=%s", workspace_id)
                 
                 # Get model names from Flask config or use defaults
                 from config import get_config
@@ -130,20 +134,23 @@ def get_ai_service(force_new: bool = False) -> AIService:
                     caption_model = config.IMAGE_CAPTION_MODEL
 
                 # Get cached providers
-                text_provider = _get_cached_text_provider(text_model)
-                image_provider = _get_cached_image_provider(image_model)
-                caption_provider = _get_cached_caption_provider(caption_model)
+                text_provider = _get_cached_text_provider(workspace_id, text_model)
+                image_provider = _get_cached_image_provider(workspace_id, image_model)
+                caption_provider = _get_cached_caption_provider(workspace_id, caption_model)
 
                 # Create AIService with cached providers
-                _ai_service_instance = AIService(
+                _ai_service_instances[workspace_id] = AIService(
                     text_provider=text_provider,
                     image_provider=image_provider,
                     caption_provider=caption_provider
                 )
 
-                logger.info(f"AIService singleton created with models: text={text_model}, image={image_model}, caption={caption_model}")
+                logger.info(
+                    "AIService singleton created for workspace=%s with models: text=%s, image=%s, caption=%s",
+                    workspace_id, text_model, image_model, caption_model,
+                )
     
-    return _ai_service_instance
+    return _ai_service_instances[workspace_id]
 
 
 def clear_ai_service_cache():
@@ -160,10 +167,8 @@ def clear_ai_service_cache():
     - Prevents race conditions where new instances could be created
       with stale cached providers during the clearing process
     """
-    global _ai_service_instance
-    
     with _lock:
-        _ai_service_instance = None
+        _ai_service_instances.clear()
         logger.info("AIService singleton cache cleared")
         with _cache_lock:
             _text_provider_cache.clear()

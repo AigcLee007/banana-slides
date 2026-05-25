@@ -1,4 +1,4 @@
-"""
+﻿"""
 Task Manager - handles background tasks using ThreadPoolExecutor
 No need for Celery or Redis, uses in-memory task tracking
 """
@@ -17,6 +17,7 @@ from sqlalchemy.exc import OperationalError
 from PIL import Image, ImageDraw, ImageFilter
 from models import db, Task, Page, Material, PageImageVersion
 from utils import get_filtered_pages
+from utils.workspace import set_workspace_id
 from utils.image_utils import check_image_resolution
 
 
@@ -43,6 +44,13 @@ def _append_extra_fields(desc_text: str, desc_content: dict) -> str:
         if value and (allowed is None or name in allowed):
             parts.append(f"\n{name}：{value}")
     return ''.join(parts)
+
+
+def _bind_workspace_for_task(task: Task | None):
+    """Bind the task owner to the current app context for per-workspace settings."""
+    if task and getattr(task, 'owner_id', None):
+        set_workspace_id(task.owner_id)
+
 from pathlib import Path
 from services.pdf_service import split_pdf_to_pages
 
@@ -392,6 +400,7 @@ def generate_descriptions_task(task_id: str, project_id: str, ai_service,
             if not task:
                 logger.error(f"Task {task_id} not found")
                 return
+            _bind_workspace_for_task(task)
             
             task.status = 'PROCESSING'
             db.session.commit()
@@ -544,6 +553,7 @@ def generate_images_task(task_id: str, project_id: str, ai_service, file_service
             task = Task.query.get(task_id)
             if not task:
                 return
+            _bind_workspace_for_task(task)
             
             task.status = 'PROCESSING'
             db.session.commit()
@@ -771,6 +781,7 @@ def generate_single_page_image_task(task_id: str, project_id: str, page_id: str,
             task = Task.query.get(task_id)
             if not task:
                 return
+            _bind_workspace_for_task(task)
             
             task.status = 'PENDING'
             db.session.commit()
@@ -915,6 +926,7 @@ def edit_page_image_task(task_id: str, project_id: str, page_id: str,
             task = Task.query.get(task_id)
             if not task:
                 return
+            _bind_workspace_for_task(task)
             
             # Get page from database
             page = Page.query.get(page_id)
@@ -1033,6 +1045,7 @@ def generate_material_image_task(task_id: str, project_id: str, prompt: str,
             task = Task.query.get(task_id)
             if not task:
                 return
+            _bind_workspace_for_task(task)
             
             task.status = 'PENDING'
             db.session.commit()
@@ -1320,6 +1333,7 @@ def process_ppt_renovation_task(task_id: str, project_id: str, ai_service,
             if not task:
                 logger.error(f"Task {task_id} not found")
                 return
+            _bind_workspace_for_task(task)
 
             task.status = 'PROCESSING'
             db.session.commit()
@@ -1876,6 +1890,7 @@ def export_video_task(
             if not task:
                 logger.error(f"Task {task_id} not found")
                 return
+            _bind_workspace_for_task(task)
 
             project = Project.query.get(project_id)
             if not project:

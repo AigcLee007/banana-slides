@@ -7,7 +7,7 @@ import hmac
 import logging
 from pathlib import Path
 from dotenv import load_dotenv
-from sqlalchemy import event
+from sqlalchemy import event, inspect, text
 from sqlalchemy.engine import Engine
 import sqlite3
 from sqlalchemy.exc import SQLAlchemyError
@@ -22,6 +22,7 @@ from flask import Flask
 from flask_cors import CORS
 from models import db
 from config import Config
+from utils.workspace import DEFAULT_WORKSPACE_ID, set_workspace_id
 from controllers.material_controller import material_bp, material_global_bp
 from controllers.reference_file_controller import reference_file_bp
 from controllers.settings_controller import settings_bp
@@ -118,10 +119,16 @@ def create_app():
     app.register_blueprint(style_bp)
 
     with app.app_context():
+        _ensure_workspace_schema()
         # Load settings from database and sync to app.config
         _load_settings_to_config(app)
 
     # Access code enforcement on all /api/ routes
+    @app.before_request
+    def _bind_workspace():
+        from flask import request
+        set_workspace_id(request.headers.get('X-Workspace-Id'))
+
     @app.before_request
     def _enforce_access_code():
         from flask import request, jsonify
@@ -193,11 +200,46 @@ def create_app():
     return app
 
 
+def _ensure_workspace_schema():
+    """Backfill owner_id columns for anonymous multi-workspace isolation."""
+    inspector = inspect(db.engine)
+    existing_tables = set(inspector.get_table_names())
+    owner_tables = ('projects', 'settings', 'reference_files', 'materials', 'tasks')
+
+    with db.engine.begin() as conn:
+        for table_name in owner_tables:
+            if table_name not in existing_tables:
+                continue
+            columns = {col['name'] for col in inspector.get_columns(table_name)}
+            if 'owner_id' not in columns:
+                conn.execute(text(
+                    f"ALTER TABLE {table_name} "
+                    "ADD COLUMN owner_id VARCHAR(128) DEFAULT 'default'"
+                ))
+            conn.execute(text(
+                f"UPDATE {table_name} SET owner_id = :workspace "
+                "WHERE owner_id IS NULL OR owner_id = ''"
+            ), {'workspace': DEFAULT_WORKSPACE_ID})
+
+        if 'settings' in existing_tables:
+            conn.execute(text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS uq_settings_owner_id "
+                "ON settings(owner_id)"
+            ))
+
+        for table_name in owner_tables:
+            if table_name in existing_tables and table_name != 'settings':
+                conn.execute(text(
+                    f"CREATE INDEX IF NOT EXISTS ix_{table_name}_owner_id "
+                    f"ON {table_name}(owner_id)"
+                ))
+
+
 def _load_settings_to_config(app):
     """Load settings from database and apply to app.config on startup"""
     from models import Settings
     try:
-        settings = Settings.get_settings()
+        settings = Settings.get_settings(DEFAULT_WORKSPACE_ID)
         settings.ai_provider_format = 'gemini'
         settings.api_base_url = 'https://vip.aittco.com'
         settings.text_model = 'gemini-3-flash-preview'

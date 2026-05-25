@@ -1,10 +1,11 @@
-"""
+﻿"""
 Material Controller - handles standalone material image generation
 """
 import json
 from flask import Blueprint, request, current_app, send_file
 from models import db, Project, Material, Task
 from utils import success_response, error_response, not_found, bad_request
+from utils.workspace import get_workspace_id, get_workspace_project
 from services import FileService
 from services.ai_service_manager import get_ai_service
 from services.task_manager import task_manager, generate_material_image_task, process_material_image_task
@@ -157,14 +158,14 @@ def _generate_image_caption(filepath: str) -> str:
 
 def _build_material_query(filter_project_id: str):
     """Build common material query with project validation."""
-    query = Material.query
+    query = Material.query.filter(Material.owner_id == get_workspace_id())
 
     if filter_project_id == 'all':
         return query, None
     if filter_project_id == 'none':
         return query.filter(Material.project_id.is_(None)), None
 
-    project = Project.query.get(filter_project_id)
+    project = get_workspace_project(filter_project_id)
     if not project:
         return None, not_found('Project')
 
@@ -233,7 +234,7 @@ def _resolve_target_project_id(raw_project_id: Optional[str], allow_none: bool =
         return None, bad_request("project_id cannot be 'all' when uploading materials")
 
     if raw_project_id:
-        project = Project.query.get(raw_project_id)
+        project = get_workspace_project(raw_project_id)
         if not project:
             return None, not_found('Project')
 
@@ -271,6 +272,7 @@ def _save_material_file(file, target_project_id: Optional[str]):
         image_url = f"/files/materials/{unique_filename}"
 
     material = Material(
+        owner_id=get_workspace_id(),
         project_id=target_project_id,
         filename=unique_filename,
         relative_path=relative_path,
@@ -337,14 +339,14 @@ def generate_material_image(project_id):
     Note: project_id can be 'none' to generate global materials (not associated with any project)
     """
     try:
-        # 支持 'none' 作为特殊值，表示生成全局素材
+        # 鏀寔 'none' 浣滀负鐗规畩鍊硷紝琛ㄧず鐢熸垚鍏ㄥ眬绱犳潗
         if project_id != 'none':
-            project = Project.query.get(project_id)
+            project = get_workspace_project(project_id)
             if not project:
                 return not_found('Project')
         else:
             project = None
-            project_id = None  # 设置为None表示全局素材
+            project_id = None  # 璁剧疆涓篘one琛ㄧず鍏ㄥ眬绱犳潗
 
         # Parse request data (prioritize multipart for file uploads)
         if request.is_json:
@@ -365,13 +367,13 @@ def generate_material_image(project_id):
         if not prompt:
             return bad_request("prompt is required")
 
-        # 处理project_id：对于全局素材，使用'global'作为Task的project_id
-        # Task模型要求project_id不能为null，但Material可以
+        # 澶勭悊project_id锛氬浜庡叏灞€绱犳潗锛屼娇鐢?global'浣滀负Task鐨刾roject_id
+        # Task妯″瀷瑕佹眰project_id涓嶈兘涓簄ull锛屼絾Material鍙互
         task_project_id = project_id if project_id is not None else 'global'
         
-        # 验证project_id（如果不是'global'）
+        # Validate the project scope unless this is a global material task.
         if task_project_id != 'global':
-            project = Project.query.get(task_project_id)
+            project = get_workspace_project(task_project_id)
             if not project:
                 return not_found('Project')
 
@@ -379,7 +381,7 @@ def generate_material_image(project_id):
         ai_service = get_ai_service()
         file_service = FileService(current_app.config['UPLOAD_FOLDER'])
 
-        # 创建临时目录保存参考图片（后台任务会清理）
+        # 鍒涘缓涓存椂鐩綍淇濆瓨鍙傝€冨浘鐗囷紙鍚庡彴浠诲姟浼氭竻鐞嗭級
         temp_dir = Path(tempfile.mkdtemp(dir=current_app.config['UPLOAD_FOLDER']))
         temp_dir_str = str(temp_dir)
 
@@ -425,8 +427,7 @@ def generate_material_image(project_id):
             task_manager.submit_task(
                 task.id,
                 generate_material_image_task,
-                task_project_id,  # 传递给任务函数，它会处理'global'的情况
-                prompt,
+                task_project_id,  # 浼犻€掔粰浠诲姟鍑芥暟锛屽畠浼氬鐞?global'鐨勬儏鍐?                prompt,
                 ai_service,
                 file_service,
                 ref_path_str,
@@ -437,7 +438,7 @@ def generate_material_image(project_id):
                 app
             )
 
-            # Return task_id immediately (不再清理temp_dir，由后台任务清理)
+            # Return task_id immediately (涓嶅啀娓呯悊temp_dir锛岀敱鍚庡彴浠诲姟娓呯悊)
             return success_response({
                 'task_id': task.id,
                 'status': 'PENDING'
@@ -471,7 +472,7 @@ def process_material_image(project_id):
     """
     try:
         if project_id != 'none':
-            project = Project.query.get(project_id)
+            project = get_workspace_project(project_id)
             if not project:
                 return not_found('Project')
         else:
@@ -521,7 +522,7 @@ def process_material_image(project_id):
 
         task_project_id = project_id if project_id is not None else 'global'
         if task_project_id != 'global':
-            project = Project.query.get(task_project_id)
+            project = get_workspace_project(task_project_id)
             if not project:
                 return not_found('Project')
 
@@ -737,7 +738,7 @@ def associate_materials_to_project():
             return bad_request("material_urls must be a non-empty array")
 
         # Validate project exists
-        project = Project.query.get(project_id)
+        project = get_workspace_project(project_id)
         if not project:
             return not_found('Project')
 
