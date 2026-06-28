@@ -967,14 +967,39 @@ class AIService:
             try:
                 # 使用 image_provider 生成图片
                 # 根据 enable_image_reasoning 配置控制图像生成的思考模式
-                return self.image_provider.generate_image(
-                    prompt=prompt,
-                    ref_images=ref_images if ref_images else None,
-                    aspect_ratio=aspect_ratio,
-                    resolution=resolution,
-                    enable_thinking=self.enable_image_reasoning,
-                    thinking_budget=self._get_image_thinking_budget()
-                )
+                try:
+                    return self.image_provider.generate_image(
+                        prompt=prompt,
+                        ref_images=ref_images if ref_images else None,
+                        aspect_ratio=aspect_ratio,
+                        resolution=resolution,
+                        enable_thinking=self.enable_image_reasoning,
+                        thinking_budget=self._get_image_thinking_budget()
+                    )
+                except Exception as provider_error:
+                    error_text = str(provider_error)
+                    should_retry_without_refs = (
+                        bool(ref_images)
+                        and "data must be valid base64 image data" in error_text
+                    )
+                    if not should_retry_without_refs:
+                        raise
+
+                    logger.warning(
+                        "Image provider rejected reference images; retrying without refs. "
+                        "provider=%s refs=%d error=%s",
+                        type(self.image_provider).__name__,
+                        len(ref_images),
+                        error_text,
+                    )
+                    return self.image_provider.generate_image(
+                        prompt=prompt,
+                        ref_images=None,
+                        aspect_ratio=aspect_ratio,
+                        resolution=resolution,
+                        enable_thinking=self.enable_image_reasoning,
+                        thinking_budget=self._get_image_thinking_budget()
+                    )
             finally:
                 for img in owned_images:
                     try:
